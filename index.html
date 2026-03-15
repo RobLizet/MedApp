@@ -956,8 +956,25 @@ function renderWeekRapport(){
   if(!box)return;
   box.textContent=buildFullWeekrapport();
 }
-
+const FB_URL = "https://medapp-4a2f9-default-rtdb.europe-west1.firebasedatabase.app/rob/medapp.json";
+let __fbPushTimer = null;
+window.__fbImporting = false;
+function fbShouldSync(key) {
+  return key.startsWith("taken:") || key.startsWith("health:") ||
+         key.startsWith("pain:") || key.startsWith("stemming:") ||
+         key.startsWith("note:") || key.startsWith("timeshift:") ||
+         key.startsWith("afspraken") || key.startsWith("schedule:") ||
+         key === "noodinfo:v1" || key === "notes:med" ||
+         key === "settings:warnMin" || key === "settings:theme" ||
+         key === "settings:sound";
+}
+function fbSchedulePush(){clearTimeout(__fbPushTimer);__fbPushTimer=setTimeout(fbPush,2000);}
+async function fbPush(){try{const d={};for(const k of Object.keys(localStorage)){if(fbShouldSync(k))d[k]=localStorage.getItem(k);}await fetch(FB_URL,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});}catch(e){}}
+async function fbPull(){try{const r=await fetch(FB_URL+"?ts="+Date.now());if(!r.ok)return;const data=await r.json();if(!data||typeof data!=="object")return;for(const k of Object.keys(data)){if(fbShouldSync(k)&&data[k]!=null){window.__fbImporting=true;localStorage.setItem(k,String(data[k]));window.__fbImporting=false;}}schedule=loadSchedule();}catch(e){}}
+const __lsSetItem=localStorage.setItem.bind(localStorage);
+localStorage.setItem=function(key,value){__lsSetItem(key,value);if(!window.__fbImporting&&fbShouldSync(key))fbSchedulePush();};
 function init(){
+fbPull();  
   window.__activeView="vandaag";
   el("datePicker").value=ymd(new Date());
   const s=getSettings();
